@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theorem 2 — Polynomial Approximation</title>
+
+<!-- MathJax Configuration -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
+    processEscapes: true,
+    tags: 'ams',
+    macros: {
+      mathcal: ["{\\cal #1}", 1],
+      mathbb: ["{\\bf #1}", 1] // Fallback if fonts aren't loaded, though MathJax usually handles this
+    }
+  },
+  options: {
+    renderActions: {
+      addMenu: []
+    }
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    :root {
+        --primary-color: #000000;
+        --header-color: #0056b3; /* Matching \textcolor{blue} */
+        --bg-color: #ffffff;
+        --font-serif: "Times New Roman", Times, serif;
+        --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-serif);
+        background-color: var(--bg-color);
+        color: var(--primary-color);
+        line-height: 1.6;
+        font-size: 18px;
+        max-width: 850px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: justify;
+    }
+
+    h2 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        margin-top: 2.5em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    h3 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        font-size: 1.1em;
+        margin-top: 2em;
+        margin-bottom: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    h2:first-of-type {
+        margin-top: 0;
+    }
+
+    p {
+        margin-bottom: 1.2em;
+    }
+
+    ul, ol {
+        margin-bottom: 1.2em;
+        padding-left: 1.5em;
+    }
+
+    li {
+        margin-bottom: 0.5em;
+    }
+
+    /* Environment Styles (Theorem, Lemma, Assumption) */
+    .environment {
+        margin-bottom: 1.5em;
+        display: block;
+        font-style: italic;
+    }
+
+    .env-header {
+        font-weight: bold;
+        font-style: normal;
+        font-family: var(--font-sans);
+        display: inline;
+    }
+
+    /* Proof Styles */
+    .proof {
+        margin-top: -0.5em;
+        margin-bottom: 2em;
+        display: block;
+    }
+
+    .proof-header {
+        font-style: italic;
+        font-weight: bold;
+        display: inline;
+    }
+
+    .qed {
+        float: right;
+        font-style: normal;
+        font-size: 0.8em;
+        color: #555;
+        margin-left: 10px;
+    }
+
+    /* Justification Section Styling */
+    .justification-block {
+        background-color: #f9f9f9;
+        border-left: 4px solid #ddd;
+        padding: 15px;
+        margin: 15px 0;
+    }
+
+    /* Equation spacing */
+    .MathJax_Display {
+        margin: 1.5em 0 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        body {
+            padding: 20px;
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= SECTION TITLE ================= -->
+
+<h2>Polynomial Approximation of the Accuracy Surface (Theorem 2)</h2>
+
+<!-- ================= SUBSECTION: RELAXATION ================= -->
+
+<h3>Relaxation Assumption</h3>
+
+<div class="environment assumption">
+    <span class="env-header">Assumption 1 (Continuous Relaxation of Pruning Ratios).</span>
+    Although structured pruning masks $(\hat m^a,\hat m^g)$ are discrete,
+    their normalized pruning ratios
+    $$
+    (\tilde m^a,\tilde m^g)
+    \in \mathcal D=\{0,\tfrac1L,\ldots,1\}^2
+    \subset [0,1]^2
+    $$
+    admit a continuous relaxation in which $(\tilde m^a,\tilde m^g)$
+    is treated as a point in the full square $[0,1]^2$.
+    Furthermore, the accuracy functional $\mathcal P$ evaluated on $\mathcal D$
+    extends to a continuous map
+    $$
+    \tilde{\mathcal P}:[0,1]^2\to [0,1],
+    \qquad
+    \tilde{\mathcal P}|_{\mathcal D}=\mathcal P.
+    $$
+</div>
+
+<div class="justification-block">
+    <p><b>Justification.</b> This assumption is standard in pruning theory and inherits two empirical/structural facts:</p>
+    <ol>
+        <li>
+            <em>Sparsity relaxations.</em> Continuous formulations of pruning (e.g., magnitude relaxation, soft masks) induce validation accuracy that varies smoothly with the pruning level.
+        </li>
+        <li>
+            <em>Observed one‑dimensional smoothness.</em> Accuracy under $(\tilde m^a,0)$ or $(0,\tilde m^g)$ varies smoothly with the pruning ratio, suggesting that the bivariate surface is continuous.
+        </li>
+    </ol>
+    <p>
+        Assumption 1 therefore formalizes a widely accepted—and empirically validated—interpretation of pruning ratios as living on a continuous compact domain.
+    </p>
+</div>
+
+<!-- ================= SUBSECTION: LEMMAS ================= -->
+
+<h3>Lemmas for Stone–Weierstrass (Lattice Version)</h3>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 1 (Domain compactness).</span>
+    The domain $[0,1]^2$ is a compact Hausdorff space.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Each interval $[0,1]$ is compact Hausdorff; products preserve both properties.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 2 (Polynomial algebra as separating lattice).</span>
+    Let $A=\mathbb R[x,y]$ denote the algebra of all real bivariate polynomials. Then:
+    <ol>
+        <li>$A$ contains all constant functions;</li>
+        <li>$A$ separates points of $[0,1]^2$;</li>
+        <li>The uniform closure $\overline{A}$ is closed under $\max$ and $\min$, i.e.,
+        $$
+        \max(f,g),\;\min(f,g)\in \overline{A},
+        \qquad \forall f,g\in \overline{A}.
+        $$
+        </li>
+    </ol>
+    Hence $A$ is a <em>separating lattice</em>.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    <p>(1) Constant polynomials belong to $A$.</p>
+    <p>(2) If $(x_1,y_1)\neq(x_2,y_2)$, then either $x_1\neq x_2$ or $y_1\neq y_2$. Thus $p(x,y)=x$ or $p(x,y)=y$ separates the points.</p>
+    <p>(3) For any $f,g\in\overline{A}$,
+    $$
+    \max(f,g)=\frac{f+g}{2}+\frac{|f-g|}{2},\qquad
+    \min(f,g)=\frac{f+g}{2}-\frac{|f-g|}{2}.
+    $$
+    Since absolute value $|\cdot|$ is continuous and can be uniformly approximated on compact sets by polynomials, $|f-g|\in\overline{A}$, completing the proof.</p>
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 3 (Stone–Weierstrass, Lattice Version).</span>
+    Let $K$ be a compact Hausdorff space and $A\subset C(K)$ a separating lattice containing constants. Then $\overline{A}=C(K)$ under the uniform norm.
+</div>
+
+<!-- ================= SUBSECTION: MAIN RESULT ================= -->
+
+<h3>Main Result</h3>
+
+<div class="environment theorem">
+    <span class="env-header">Theorem 2 (Uniform Polynomial Approximation of the Accuracy Surface).</span>
+    Under Assumption 1, for every $\varepsilon>0$ there exists a polynomial $Q(x,y)\in \mathbb R[x,y]$ such that
+    $$
+    \sup_{(x,y)\in[0,1]^2}
+    \bigl|\tilde{\mathcal P}(x,y)-Q(x,y)\bigr|
+    <\varepsilon.
+    $$
+    Consequently,
+    $$
+    \max_{(\tilde m^a,\tilde m^g)\in\mathcal D}
+    \bigl|\mathcal P(\tilde m^a,\tilde m^g)-Q(\tilde m^a,\tilde m^g)\bigr|
+    <\varepsilon.
+    $$
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    By Lemma 1, $[0,1]^2$ is compact Hausdorff. By Lemma 2, the polynomial algebra $A$ is a separating lattice containing constants. Thus all hypotheses of the Stone–Weierstrass theorem (lattice version), Lemma 3, are satisfied.
+    
+    Therefore $\overline{A}=C([0,1]^2)$, meaning that polynomials are uniformly dense in the space of continuous functions on the domain. Since $\tilde{\mathcal P}\in C([0,1]^2)$ by Assumption 1, there exists a polynomial $Q$ such that
+    $$
+    \sup_{(x,y)\in[0,1]^2}
+    |\tilde{\mathcal P}(x,y)-Q(x,y)|<\varepsilon.
+    $$
+    Because $\mathcal D\subset[0,1]^2$, the same inequality holds when restricted to $\mathcal D$.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<h3>Remark</h3>
+<p>
+    The theorem ensures that the empirical pruning–accuracy landscape can be approximated arbitrarily well by finite‑degree bivariate polynomials. This provides the theoretical foundation for MAP and other polynomial‑based surrogate models used for pruning‑ratio optimization.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theorem 4 — Gradient Disparity</title>
+
+<!-- MathJax Configuration -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['[',']']],
+    processEscapes: true,
+    tags: 'ams',
+    macros: {
+      mathcal: ["{\\cal #1}", 1],
+      mathbb: ["{\\bf #1}", 1],
+      underset: ["\\mathop{#2}\\limits_{#1}", 2],
+      underbrace: ["\\mathop{\\vtop{\\ialign{##\\crcr $\\hfil\\displaystyle{#1}\\hfil$\\crcr\\noalign{\\kern3pt\\nointerlineskip}\\upbracefill\\crcr\\noalign{\\kern3pt}}}}\\limits_{#2}", 2]
+    }
+  },
+  options: {
+    renderActions: {
+      addMenu: []
+    }
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    :root {
+        --primary-color: #000000;
+        --header-color: #0056b3; /* Matching \textcolor{blue} */
+        --bg-color: #ffffff;
+        --font-serif: "Times New Roman", Times, serif;
+        --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-serif);
+        background-color: var(--bg-color);
+        color: var(--primary-color);
+        line-height: 1.6;
+        font-size: 18px;
+        max-width: 850px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: justify;
+    }
+
+    h2 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        margin-top: 2.5em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    h3 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        font-size: 1.1em;
+        margin-top: 2em;
+        margin-bottom: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    h2:first-of-type {
+        margin-top: 0;
+    }
+
+    p {
+        margin-bottom: 1.2em;
+    }
+
+    ul, ol {
+        margin-bottom: 1.2em;
+        padding-left: 1.5em;
+    }
+
+    li {
+        margin-bottom: 0.5em;
+    }
+
+    /* Environment Styles (Theorem, Lemma, Assumption) */
+    .environment {
+        margin-bottom: 1.5em;
+        display: block;
+        font-style: italic;
+    }
+
+    .env-header {
+        font-weight: bold;
+        font-style: normal;
+        font-family: var(--font-sans);
+        display: inline;
+    }
+
+    /* Proof Styles */
+    .proof {
+        margin-top: -0.5em;
+        margin-bottom: 2em;
+        display: block;
+    }
+
+    .proof-header {
+        font-style: italic;
+        font-weight: bold;
+        display: inline;
+    }
+
+    .proof-step {
+        font-weight: bold;
+        font-style: normal;
+        margin-top: 1em;
+        display: block;
+    }
+
+    .qed {
+        float: right;
+        font-style: normal;
+        font-size: 0.8em;
+        color: #555;
+        margin-left: 10px;
+    }
+
+    /* References */
+    .references {
+        margin-top: 4em;
+        border-top: 1px solid #eee;
+        padding-top: 1em;
+        font-size: 0.9em;
+        color: #555;
+    }
+    .ref-item {
+        margin-bottom: 0.5em;
+    }
+
+    /* Equation spacing */
+    .MathJax_Display {
+        margin: 1.5em 0 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        body {
+            padding: 20px;
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= SECTION TITLE ================= -->
+
+<h2>Gradient Disparity Between Activation and Attention Paths (Theorem 4)</h2>
+
+<p>
+    We consider scalar interpolation parameters $\hat m^g$ and $\hat m^a$ applied respectively to the GELU activation output $\mathcal G_l\in\mathbb R^{N\times4d}$ and the attention output $\mathcal A_l\in\mathbb R^{N\times d}$ of layer $l$:
+</p>
+
+$$
+h(\mathcal G_l)=\hat m^g\circ\mathcal G_l+(1-\hat m^g)\circ I,
+\qquad
+h(\mathcal A_l)=\hat m^a\circ\mathcal A_l+(1-\hat m^a)\circ I.
+$$
+
+<p>
+    Let $\delta^g=\partial\mathcal L/\partial h(\mathcal G_l)$ and $\delta^a=\partial\mathcal L/\partial h(\mathcal A_l)$. The gradients of the loss $\mathcal L$ w.r.t. the interpolation scalars are:
+</p>
+
+$$
+\begin{align}
+\nabla_{\hat m^g}
+&=\sum_{i=1}^N\sum_{k=1}^{4d}\delta^g_{ik}(\mathcal G_{ik}-1),
+\\
+\nabla_{\hat m^a}
+&=\sum_{i=1}^N\sum_{j=1}^d \delta^a_{ij}(\mathcal A_{ij}-1).
+\end{align}
+$$
+
+<!-- ================= SUBSECTION: ASSUMPTIONS ================= -->
+
+<h3>Assumptions</h3>
+
+<div class="environment assumption">
+    <span class="env-header">Assumption 1 (Isotropic gradient distribution).</span>
+    The entries of $\delta^g$ and $\delta^a$ are i.i.d. with zero mean and variance $\sigma_\delta^2$.
+</div>
+
+<div class="environment assumption">
+    <span class="env-header">Assumption 2 (Activation–gradient independence).</span>
+    Forward activations $(\mathcal G,\mathcal A)$ are independent of the incoming gradient tensors $(\delta^g,\delta^a)$.
+</div>
+
+<!-- ================= SUBSECTION: LEMMAS ================= -->
+
+<h3>Supporting Lemmas</h3>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 1 (Dimensionality amplification).</span>
+    $$
+    \dim(\mathcal G_l)=4d,\qquad \dim(\mathcal A_l)=d.
+    $$
+    Thus, the GELU gradient aggregates four times more terms than the attention gradient.
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 2 (Activation variance disparity).</span>
+    Define the second central moments
+    $$
+    M_{\mathcal G}=\mathbb E[(\mathcal G-1)^2],\qquad
+    M_{\mathcal A}=\mathbb E[(\mathcal A-1)^2].
+    $$
+    In pre-trained DeiT models,
+    $$
+    M_{\mathcal G}\gg M_{\mathcal A}.
+    $$
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Attention outputs are regulated by LayerNorm and the Softmax operator, which constrain their values to a distribution close to $\mathcal N(0,1)$; this behavior has been documented in prior empirical studies [1]. In contrast, GELU activations appear in an unnormalized FFN branch and exhibit heavy-tailed statistics with frequent large-magnitude outliers ($|x|\gg 1$), leading to significantly larger squared deviations. Such heavy-tailed activation patterns in FFNs have been consistently observed in recent analyses of Transformer models [2, 3].
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 3 (Expected gradient energy).</span>
+    Under the assumptions,
+    $$
+    \mathbb E\|\nabla_{\hat m^g}\|^2
+    =4Nd\sigma_\delta^2\,M_{\mathcal G},\qquad
+    \mathbb E\|\nabla_{\hat m^a}\|^2
+    =Nd\sigma_\delta^2\,M_{\mathcal A}.
+    $$
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Cross-terms vanish by zero-mean independence. The remaining terms accumulate linearly with tensor size.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- ================= SUBSECTION: MAIN THEOREM ================= -->
+
+<h3>Main Result: Gradient Disparity</h3>
+
+<div class="environment theorem">
+    <span class="env-header">Theorem 4 (Gradient Disparity).</span>
+    Let $\gamma=M_{\mathcal G}/M_{\mathcal A}$. Then
+    $$
+    \frac{\mathbb E\|\nabla_{\hat m^g}\|^2}
+         {\mathbb E\|\nabla_{\hat m^a}\|^2}
+    =4\gamma,
+    \qquad\text{with }\gamma\gg1.
+    $$
+    Hence, GELU-path gradients dominate attention-path gradients by 1--2 orders of magnitude.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Immediate from Lemma 3 and the fact that $\gamma\gg1$.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- ================= REFERENCES ================= -->
+
+<div class="references">
+    <div class="ref-item">[1] Darcet, T., et al. "Vision transformers need registers." arXiv:2309.16588 (2023).</div>
+    <div class="ref-item">[2] Bondarenko, Y., et al. "Quantizable transformers: Removing outliers by helping attention heads do nothing." NeurIPS (2023).</div>
+    <div class="ref-item">[3] Sun, Y., et al. "Flatquant: Flatness matters for llm quantization." arXiv:2410.09426 (2024).</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theorem 5 — Pruning Sensitivity and Recovery</title>
+
+<!-- MathJax Configuration -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['[',']']],
+    processEscapes: true,
+    tags: 'ams',
+    macros: {
+      mathcal: ["{\\cal #1}", 1],
+      mathbb: ["{\\bf #1}", 1],
+      underset: ["\\mathop{#2}\\limits_{#1}", 2],
+      underbrace: ["\\mathop{\\vtop{\\ialign{##\\crcr $\\hfil\\displaystyle{#1}\\hfil$\\crcr\\noalign{\\kern3pt\\nointerlineskip}\\upbracefill\\crcr\\noalign{\\kern3pt}}}}\\limits_{#2}", 2]
+    }
+  },
+  options: {
+    renderActions: {
+      addMenu: []
+    }
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    :root {
+        --primary-color: #000000;
+        --header-color: #0056b3; /* Matching \textcolor{blue} */
+        --bg-color: #ffffff;
+        --font-serif: "Times New Roman", Times, serif;
+        --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-serif);
+        background-color: var(--bg-color);
+        color: var(--primary-color);
+        line-height: 1.6;
+        font-size: 18px;
+        max-width: 850px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: justify;
+    }
+
+    h2 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        margin-top: 2.5em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    h3 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        font-size: 1.1em;
+        margin-top: 2em;
+        margin-bottom: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    h2:first-of-type {
+        margin-top: 0;
+    }
+
+    p {
+        margin-bottom: 1.2em;
+    }
+
+    ul, ol {
+        margin-bottom: 1.2em;
+        padding-left: 1.5em;
+    }
+
+    li {
+        margin-bottom: 0.5em;
+    }
+
+    /* Environment Styles (Theorem, Lemma, Assumption) */
+    .environment {
+        margin-bottom: 1.5em;
+        display: block;
+        font-style: italic;
+    }
+
+    .env-header {
+        font-weight: bold;
+        font-style: normal;
+        font-family: var(--font-sans);
+        display: inline;
+    }
+
+    /* Proof Styles */
+    .proof {
+        margin-top: -0.5em;
+        margin-bottom: 2em;
+        display: block;
+    }
+
+    .proof-header {
+        font-style: italic;
+        font-weight: bold;
+        display: inline;
+    }
+
+    .proof-step {
+        font-weight: bold;
+        font-style: normal;
+        margin-top: 1em;
+        display: block;
+    }
+
+    .qed {
+        float: right;
+        font-style: normal;
+        font-size: 0.8em;
+        color: #555;
+        margin-left: 10px;
+    }
+
+    /* Equation spacing */
+    .MathJax_Display {
+        margin: 1.5em 0 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        body {
+            padding: 20px;
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= SECTION TITLE ================= -->
+
+<h2>Pruning Sensitivity and Recovery Dynamics (Theorem 5)</h2>
+
+<p>
+    We now examine the consequences of this gradient disparity for post-pruning behavior. Pruning is modeled as $\hat m=0$ on a fraction $\rho$ of the channels.
+</p>
+<p>
+    Let $\Delta\mathcal L$ denote the immediate change in loss after pruning, before any fine-tuning steps.
+</p>
+
+<!-- ================= SUBSECTION: SENSITIVITY ================= -->
+
+<h3>Sensitivity Analysis (Forward Damage)</h3>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 4 (Pruning-induced activation removal).</span>
+    Let $\Delta y$ denote the output perturbation. Then under a first-order Taylor expansion,
+    $$
+    \mathbb E[\Delta\mathcal L]\propto\mathbb E\|\Delta y\|.
+    $$
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Taylor expansion of $\mathcal L(y+\Delta y)$ and independence of $\nabla_y\mathcal L$ from the pruning mask at initialization give $\Delta\mathcal L\approx\nabla_y\mathcal L\cdot\Delta y$ and $\mathbb E|\Delta\mathcal L|\propto\mathbb E\|\Delta y\|$.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 5 (Energy of removed GELU activation).</span>
+    Pruning GELU removes a perturbation with energy
+    $$
+    \mathbb E\|\Delta y_g\|^2\approx
+    \rho\cdot 4d\cdot \mathbb E[\mathcal G^2],
+    $$
+    where $\mathbb E[\mathcal G^2]$ is large due to heavy-tailed outliers.
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 6 (Energy of removed attention activation).</span>
+    Pruning attention removes a perturbation
+    $$
+    \mathbb E\|\Delta y_a\|^2\approx
+    \rho\cdot d\cdot \mathbb E[\mathcal A^2],
+    $$
+    with $\mathbb E[\mathcal A^2]=O(1)$ from LN stabilization.
+</div>
+
+<div class="environment theorem">
+    <span class="env-header">Theorem 5 (Pruning Sensitivity Disparity).</span>
+    $$
+    \mathbb E[\Delta\mathcal L_g]\gg
+    \mathbb E[\Delta\mathcal L_a].
+    $$
+    GELU pruning severely disrupts the residual stream, whereas attention pruning introduces only small perturbations.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Immediate from $\mathbb E\|\Delta y_g\|^2\gg\mathbb E\|\Delta y_a\|^2$.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- ================= SUBSECTION: RECOVERY ================= -->
+
+<h3>Recovery Dynamics (Backward Repair)</h3>
+
+<p>
+    Let $\theta$ be any parameter updated via gradient descent $\theta_{t+1}=\theta_t-\eta\nabla_\theta\mathcal L_t$.
+</p>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 7 (One-step loss decrease).</span>
+    $$
+    \mathcal L_{t+1}-\mathcal L_t
+    \approx -\eta\,\|\nabla_\theta\mathcal L_t\|^2.
+    $$
+    Thus, the recovery rate is proportional to the gradient energy.
+</div>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 8 (Gradient scale gap after pruning).</span>
+    After pruning,
+    $$
+    \mathbb E\|\nabla_{\hat m^g}\|^2
+    \approx 4\gamma\cdot
+    \mathbb E\|\nabla_{\hat m^a}\|^2,
+    \qquad\gamma\gg1.
+    $$
+</div>
+
+<div class="environment theorem">
+    <span class="env-header">Theorem 6 (Recovery Asymmetry).</span>
+    Let $R_g$ and $R_a$ denote the expected post-pruning recovery rates for GELU and attention, respectively. Then
+    $$
+    R_g\propto\mathbb E\|\nabla_{\hat m^g}\|^2
+    \gg
+    R_a\propto\mathbb E\|\nabla_{\hat m^a}\|^2.
+    $$
+    Pruned GELU layers, despite suffering large initial damage (Theorem 5), recover significantly faster than pruned attention layers due to much larger gradient signals.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Combine the one-step loss decrease lemma with the gradient disparity Theorem 4.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+</body>
+</html>

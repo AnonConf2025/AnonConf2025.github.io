@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theoretical Foundations & Dynamics for MAP-Based Pruning</title>
+
+<!-- MathJax Configuration -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\\[','\\]']],
+    processEscapes: true
+  },
+  options: {
+    renderActions: {
+      addMenu: []
+    }
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+:root {
+    --primary-color: #2c3e50;
+    --accent-color: #3498db;
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --light-gray: #f8f9fa;
+}
+
+body {
+  max-width: 900px;
+  margin: auto;
+  padding: 40px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+}
+
+h1 {
+  font-size: 2.2rem;
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--accent-color);
+  padding-bottom: 10px;
+  margin-bottom: 40px;
+}
+
+h2 {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  margin-top: 40px;
+  margin-bottom: 15px;
+}
+
+h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  margin-top: 0;
+}
+
+.section-block {
+  margin-bottom: 50px;
+}
+
+.theorem-box {
+  background-color: var(--light-gray);
+  border-left: 4px solid var(--accent-color);
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 0 5px 5px 0;
+}
+
+p {
+  margin-bottom: 15px;
+}
+
+ul, ol {
+  margin-bottom: 20px;
+  padding-left: 25px;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+hr {
+  border: 0;
+  height: 1px;
+  background: #e1e4e8;
+  margin: 40px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  body {
+    padding: 20px;
+    font-size: 16px;
+  }
+  h1 { font-size: 1.8rem; }
+}
+</style>
+</head>
+
+<body>
+
+<h1>Theoretical Foundations of MAP & Pruning Dynamics</h1>
+
+<p>
+This document outlines the rigorous mathematical framework supporting the <b>Model Accuracy Predictor (MAP)</b>. The theory is divided into two parts: the validity of the optimization framework (Theorems 1–3) and the physical dynamics of pruning recovery (Theorems 4–5).
+</p>
+
+<hr>
+
+<!-- PART 1 -->
+<div class="section-block">
+    <h2>Part I: Validity of MAP (Theorems 1–3)</h2>
+    <p>These theorems establish that the pruning-ratio optimization problem is well-posed, approximable, and robust to noise.</p>
+
+    <div class="theorem-box">
+        <h3>1. Well-posedness and Existence (Theorem 1)</h3>
+        <p>
+            The pruning domain is defined as a discrete lattice \(\mathcal D=\{0,\tfrac1L,\dots,1\}^2\). Under any pruning budget \(k\), the feasible set \(\mathcal D_k\) is finite ($|\mathcal D_k| \le L+1$).
+        </p>
+        <p>
+            Since the accuracy functional \(\mathcal P\) operates on a finite domain, a maximum <b>must exist</b>. Thus, the optimization problem is mathematically well-posed and solvable. The full proof is provided in <a href="./prof1.html">Theorem 1</a>.
+        </p>
+    </div>
+
+    <div class="theorem-box">
+        <h3>2. Polynomial Approximation (Theorem 2)</h3>
+        <p>
+            By assuming a continuous relaxation of pruning ratios into \([0,1]^2\), we invoke the <b>Stone–Weierstrass Theorem</b> (Lattice Version).
+        </p>
+        <p>
+            This guarantees that the accuracy surface \(\mathcal P\) can be <b>uniformly approximated</b> by a bivariate polynomial \(Q(x,y)\) to any desired precision \(\varepsilon\). This provides the theoretical justification for using polynomial-based regressors in MAP. The full proof is provided in <a href="./prof2.html">Theorem 3</a>.
+        </p>
+    </div>
+
+    <div class="theorem-box">
+        <h3>3. Consistency Under Noisy Finetuning (Theorem 3)</h3>
+        <p>
+            Fast finetuning introduces a constant bias \(b\) and random noise \(\varepsilon\):
+            $$ y = \mathcal P(x) + b + \varepsilon $$
+        </p>
+        <p>
+            We prove that when MAP is trained via <b>Least Squares</b>:
+        </p>
+        <ol>
+            <li>The noise variance \(\sigma^2\) becomes an additive constant in the loss, leaving the <b>gradient direction invariant</b>.</li>
+            <li>The predictor converges to \(\mathcal P(x) + b\). Since \(b\) is constant, the <b>argmax remains unchanged</b>.</li>
+        </ol>
+        <p>Thus, MAP consistently recovers the optimal configuration despite noisy data. The full proof is provided in <a href="./prof3.html">Theorem 3</a>.</p>
+    </div>
+</div>
+
+<hr>
+
+<!-- PART 2 -->
+<div class="section-block">
+    <h2>Part II: Gradient Disparity & Recovery (Theorems 4–5)</h2>
+    <p>These theorems explain the empirical asymmetry between pruning GELU (FFN) layers and Attention layers.</p>
+
+    <div class="theorem-box">
+        <h3>4. Gradient Disparity (Theorem 4)</h3>
+        <p>
+            We derive a theoretical bound for the ratio of expected gradient energies between GELU (\(\hat m^g\)) and Attention (\(\hat m^a\)) masks:
+        </p>
+        $$ \frac{\mathbb E\|\nabla_{\hat m^g}\|^2}{\mathbb E\|\nabla_{\hat m^a}\|^2} = 4\gamma, \quad \text{where } \gamma \gg 1 $$
+        <p>
+            Due to dimensionality amplification ($4d$ vs $d$) and the heavy-tailed variance of FFN activations ($\gamma$), GELU gradients are <b>orders of magnitude larger</b> than attention gradients. The full proof is provided in <a href="./prof4.html">Theorem 4</a>.
+        </p>
+    </div>
+
+    <div class="theorem-box">
+        <h3>5. Asymmetric Recovery Dynamics (Theorem 5)</h3>
+        <p>
+            This theorem unifies the "Forward Damage" and "Backward Repair" mechanisms:
+        </p>
+        <ul>
+            <li><b>Forward Sensitivity:</b> Pruning GELU removes high-energy outliers, causing massive initial loss ($\mathbb E[\Delta\mathcal L_g] \gg \mathbb E[\Delta\mathcal L_a]$).</li>
+            <li><b>Backward Recovery:</b> The recovery rate is proportional to gradient energy. Since GELU gradients are dominant (Theorem 4), pruned GELU layers <b>recover significantly faster</b>.</li>
+        </ul>
+        <p>
+            This explains the "Large Disruption, Fast Recovery" regime for FFNs versus the "Small Disruption, Slow Recovery" regime for Attention. The full proof is provided in <a href="./prof5.html">Theorem 5</a>.
+        </p>
+    </div>
+</div>
+
+<hr>
+
+<p>
+    <i>For detailed mathematical proofs and lemma derivations, please refer to the full appendices.</i>
+</p>
+
+</body>
+</html>

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MAP: Model Accuracy Predictor — Theory, Implementation, Robustness</title>
+
+<!-- MathJax -->
+<script>
+window.MathJax = { tex: {inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+/* ---------- 全局白底 ---------- */
+body {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+  font-size: 18px;
+  line-height: 1.7;
+  font-family: Arial, sans-serif;
+  background: #ffffff;
+  color: #000000;
+}
+
+h1, h2, h3 {
+  color: #000000;
+  margin-top: 45px;
+}
+
+hr { 
+  border: none; 
+  height: 1px; 
+  background: #cccccc; 
+  margin: 40px 0;
+}
+
+/* ---------- 表格 ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+table, th, td {
+  border: 1px solid #555;
+}
+th, td {
+  padding: 6px 8px;
+  text-align: center;
+  color: #000000;
+}
+
+/* ---------- SVG 算法图 ---------- */
+.svg-alg {
+  display: flex;
+  justify-content: center;
+  margin: 25px 0;
+}
+.svg-alg img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* ---------- 小屏适配 ---------- */
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+}
+</style>
+</head>
+
+<!-- ===================== Navigation Bar ===================== -->
+<style>
+.navbar {
+  width: 100%;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ccc;
+  padding: 12px 0;
+  margin-bottom: 30px;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+.navbar ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.navbar li {
+  margin: 6px 18px;
+}
+
+.navbar a {
+  text-decoration: none;
+  color: #000000;
+  font-weight: bold;
+  font-size: 17px;
+}
+
+.navbar a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile adaptation */
+@media (max-width: 600px) {
+  .navbar li {
+    margin: 6px 10px;
+  }
+  .navbar a {
+    font-size: 15px;
+  }
+}
+</style>
+
+<div class="navbar">
+  <ul>
+    <li><a href="#sec1">Definition</a></li>
+    <li><a href="#sec2">Theory</a></li>
+    <li><a href="#sec3">Data Collection</a></li>
+    <li><a href="#sec4">Numerical Example</a></li>
+    <li><a href="#sec5">Robustness</a></li>
+    <li><a href="#sec6">Overhead</a></li>
+  </ul>
+</div>
+<body>
+
+<h1>The Details of MAP: Model Accuracy Predictor</h1>
+<p>
+This webpage provides a clean and complete explanation of the
+<b>Model Accuracy Predictor (MAP)</b> used in BoundaryDPT,
+including its definition, mathematical foundations, lightweight data collection,
+numerical examples, robustness experiments, and runtime overhead.
+</p>
+
+<hr>
+
+<!-- ============================================================
+     1. MAP 的定义
+============================================================ -->
+<h2 id="sec1">1. Definition of MAP</h2>
+
+<p>
+The <b>Model Accuracy Predictor (MAP)</b> is a parametric function
+\(\mathcal{P}(\tilde{m}_a,\tilde{m}_g;\Theta)\) that estimates the accuracy
+of a Vision Transformer (ViT) under a given pair of pruning ratios:
+</p>
+
+$$
+\tilde m_a = \frac{\|\hat m_a\|_0}{L},
+\qquad
+\tilde m_g = \frac{\|\hat m_g\|_0}{L},
+$$
+
+<p>
+where \( \hat m_a, \hat m_g \in \{0,1\}^L \) are binary pruning masks for attention
+and activation layers, and \(L\) is the number of Transformer blocks. Because pruning
+decisions are discrete, both ratios lie in the finite set
+\(\{0,\tfrac1L,\dots,1\}\).
+</p>
+
+<p>
+Given a global pruning budget
+\(\tilde{m}_a + \tilde{m}_g = \frac{k}{L}\), k is an integer between \(0\) and \(L\), it stads for the pruning budget( number of layers to prune),
+MAP predicts the achievable accuracy of all feasible pruning configurations.
+Since the search space is finite, once MAP is constructed, the optimal pruning
+configuration can be obtained by direct enumeration:
+</p>
+
+$$
+(\tilde{m}_a^\star,\tilde{m}_g^\star)
+=
+\underset{\tilde m_a+\tilde m_g = k/L}{\arg\max}\;
+\mathcal{P}(\tilde{m}_a,\tilde{m}_g;\Theta).
+$$
+
+<h3>Polynomial Parameterization of MAP</h3>
+
+<p>
+The true accuracy landscape over pruning configurations is impractical to measure
+exhaustively, because each point requires pruning and full finetuning. Instead,
+MAP approximates this unknown landscape using a bivariate polynomial:
+</p>
+
+$$
+\mathcal{P}(\tilde{m}_a,\tilde{m}_g;\Theta)
+=
+\sum_{i,j=0}^{\kappa}
+\theta_{ij}\,
+\tilde m_a^{\,i}\,
+\tilde m_g^{\,j},
+$$
+
+<p>
+where \( \kappa \) is the polynomial degree and
+\( \Theta = \{\theta_{ij}\} \) are coefficients learned by regression on a set of
+sampled pruning configurations. In practice, a <b>quadratic polynomial</b> 
+(\(\kappa = 2\)) provides a reliable balance between expressiveness and robustness.
+</p>
+
+<p>
+By expressing MAP as a polynomial, the pruning‑ratio optimization becomes a
+lightweight regression problem, enabling efficient and accurate prediction of
+the best pruning configuration.
+</p>
+
+
+<!-- ============================================================
+     2. MAP 可应用的数学证明
+============================================================ -->
+<h2 id="sec2">2. Theoretical Foundations of MAP</h2>
+
+<p>
+The Model Accuracy Predictor (MAP) is supported by three complementary theoretical results, which together ensure that the pruning‑ratio optimization problem is mathematically well‑posed, continuously approximable, and robust to noise introduced during fast finetuning. These foundations justify why MAP is both valid and reliable for guiding pruning‑ratio selection in BoundaryDPT.
+</p>
+
+<hr>
+
+<h3>Existence of an Optimal Pruning Configuration(Theorem 1)</h3>
+
+<p>
+For a Vision Transformer with \(L\) layers, the pruning ratios for attention and activation layers lie in the discrete set:
+</p>
+
+$$
+\mathcal D = \left\{0,\tfrac1L,\dots,1\right\}^2,
+$$
+
+<p>
+which contains finitely many feasible pruning configurations.  
+Given a pruning budget constraint \(\tilde m_a + \tilde m_g = \tfrac{k}{L}\), the feasible subset of \(\mathcal D\) also remains finite.
+</p>
+
+<p>
+Therefore, the true accuracy functional
+</p>
+
+$$
+\mathcal P: \mathcal D \to \mathbb R
+$$
+
+<p>
+must attain its maximum on this finite set.  
+This ensures that the pruning‑ratio optimization problem is <b>well‑posed</b> and that an optimal pruning configuration <b>always exists</b>, enabling direct enumeration once MAP is available. The full proof is provided in <a href="../MathProof/prof1.html">Theorem 1</a>.
+</p>
+
+<hr>
+
+<h3>Continuous Relaxation and Polynomial Approximability</h3>
+
+<p>
+Although the domain \(\mathcal D\) is discrete, empirical observations show that model accuracy varies smoothly with pruning ratios.  
+This motivates viewing \(\mathcal P\) as the restriction of a continuous extension
+</p>
+
+$$
+\tilde{\mathcal P} : [0,1]^2 \to \mathbb R.
+$$
+
+<p>
+By the Stone–Weierstrass theorem, every continuous function on a compact domain—such as \([0,1]^2\)—can be <b>uniformly approximated</b> by a finite‑degree bivariate polynomial:
+</p>
+
+$$
+Q(x,y) \in \mathbb R[x,y].
+$$
+
+<p>
+Thus the accuracy landscape over pruning ratios is guaranteed to admit an accurate polynomial surrogate.  
+This directly justifies modeling MAP as a polynomial function of \((\tilde m_a,\tilde m_g)\), enabling efficient regression‑based estimation with limited data. The full proof is provided in <a href="../MathProof/prof2.html">Theorem 2</a>.
+</p>
+
+<hr>
+
+<h3>Robustness of MAP Under Noisy Fast Finetuning</h3>
+
+<p>
+The accuracy measurements used to train MAP come from rapid finetuning on a data subset.  
+These estimates follow:
+</p>
+
+$$
+\widehat{\mathcal P} = \mathcal P + b + \varepsilon,
+$$
+
+<p>
+where:</p>
+
+<ul>
+  <li>\(b\) is a constant bias from limited‑epoch finetuning, and</li>
+  <li>\(\varepsilon\) is zero‑mean noise with finite variance.</li>
+</ul>
+
+<p>
+Theoretical analysis shows:</p>
+
+<ol>
+  <li>Adding a constant bias does <b>not</b> change the identity of the maximizer of \(\mathcal P\).</li>
+  <li>The noise term averages out as the number of sampled pruning configurations grows, due to the Weak Law of Large Numbers.</li>
+</ol>
+
+<p>
+Consequently, MAP converges (in probability) to:
+</p>
+
+$$
+\mathcal P + b,
+$$
+
+<p>
+which is simply a vertical shift of the true accuracy surface and does not alter the optimal pruning solution.  
+Therefore, MAP remains a <b>statistically consistent</b> estimator of the true accuracy function, despite the inherent noise of rapid finetuning. <a href="../MathProof/prof3.html">Theorem 3</a>.
+</p>
+
+<hr>
+
+<h3>Summary</h3>
+
+<ul>
+  <li>The pruning‑ratio search problem always has an optimal solution (Theorem 1).</li>
+  <li>The accuracy surface can be uniformly approximated by a polynomial (Theorem 2).</li>
+  <li>Noisy fast‑finetuning data does not affect the correctness of MAP‑guided optimization (Theorem 3).</li>
+</ul>
+
+<p>
+Together, these results establish MAP as a mathematically sound and practically robust tool for pruning‑ratio optimization in BoundaryDPT.
+</p>
+
+<!-- ============================================================
+     3. Fast Data Collection — (now using SVG)
+============================================================ -->
+<h2 id="sec3">3. Fast Data Collection for MAP Regression</h2>
+<p>
+To efficiently train the Model Accuracy Predictor (MAP), we design two lightweight
+data‑collection procedures that avoid the high cost of full pruning and full‑epoch
+finetuning.  
+Both use a repeated <b>prune → fast‑finetune → evaluate</b> loop to obtain efficient,
+representative accuracy samples.
+</p>
+<h3>Algorithm 1 — Single-Type Progressive Pruning</h3>
+This procedure performs progressive pruning along a single layer type at a time. By increasing the pruning ratio in small steps and running a fast finetune‑and‑evaluate loop after each step, it collects smooth, low‑variance accuracy samples that trace a clear 1D pruning trajectory.
+<div class="svg-alg">
+  <img src="./algo1.svg" alt="Algorithm 1: Lightweight data collection (single layer type)">
+</div>
+
+<hr>
+
+<h3>Algorithm 2 — Interleaved Pruning</h3>
+This procedure interleaves attention‑layer pruning and activation‑layer pruning within each round. By alternating the two types of pruning and evaluating after each sub‑step, it samples the 2D pruning space more fully and captures interactions between different layer types.
+<div class="svg-alg">
+  <img src="./algo2.svg" alt="Algorithm 2: Interleaved pruning">
+</div>
+<p>
+Together, these procedures create a compact yet expressive dataset for training MAP,
+dramatically reducing computation while retaining accuracy‑landscape fidelity.
+</p>
+<hr>
+
+
+<!-- ============================================================
+     4. Numerical Example
+============================================================ -->
+<!-- ============================================================
+     4. Numerical Example
+============================================================ -->
+<h2 id="sec4">4. Numerical Example of MAP Fitting</h2>
+
+<p>
+We illustrate the complete MAP construction pipeline using DeiT‑Base
+with \(L = 12\). The pruning configuration is specified by the retained
+ratios
+$$
+a = n_a/L, \qquad t = n_g/L.
+$$
+The example dataset below lists several measured accuracies after
+progressive pruning and fast finetuning.
+</p>
+
+<h3>Example Dataset</h3>
+
+<table>
+<thead>
+<tr><th>a</th><th>t</th><th>Acc (%)</th><th>a</th><th>t</th><th>Acc (%)</th></tr>
+</thead>
+<tbody>
+<tr><td>1.00</td><td>1.00</td><td>81.80</td><td>1.00</td><td>0.92</td><td>81.07</td></tr>
+<tr><td>0.92</td><td>1.00</td><td>81.31</td><td>1.00</td><td>0.83</td><td>80.40</td></tr>
+<tr><td>0.83</td><td>1.00</td><td>80.90</td><td>1.00</td><td>0.75</td><td>78.90</td></tr>
+<tr><td>0.75</td><td>1.00</td><td>80.20</td><td>1.00</td><td>0.67</td><td>77.80</td></tr>
+<tr><td>0.67</td><td>1.00</td><td>78.10</td><td>1.00</td><td>0.58</td><td>76.70</td></tr>
+<tr><td>0.58</td><td>1.00</td><td>77.40</td><td>1.00</td><td>0.50</td><td>75.20</td></tr>
+<tr><td>0.50</td><td>1.00</td><td>72.69</td><td>1.00</td><td>0.42</td><td>74.50</td></tr>
+<tr><td>0.42</td><td>1.00</td><td>69.44</td><td>1.00</td><td>0.33</td><td>73.90</td></tr>
+<tr><td>0.33</td><td>1.00</td><td>64.84</td><td>0.92</td><td>0.92</td><td>80.34</td></tr>
+<tr><td>0.92</td><td>0.83</td><td>80.03</td><td>0.83</td><td>0.83</td><td>78.88</td></tr>
+<tr><td>0.83</td><td>0.75</td><td>78.08</td><td>0.75</td><td>0.75</td><td>76.52</td></tr>
+</tbody>
+</table>
+
+<p>
+In this setting, the pruning budget dictates the linear constraint
+$$
+a + t = 2 - \frac{k}{L},
+$$
+which we will search over after fitting the polynomial MAP model.
+</p>
+
+<hr>
+
+<h3>Polynomial Approximation and L2O‑CV</h3>
+
+<p>
+We approximate the accuracy function with a bivariate polynomial
+$$
+\mathcal{P}(a,t;\Theta)
+= \sum_{i+j\le \kappa} \theta_{ij} a^i t^j.
+$$
+Leave‑2‑Out Cross‑Validation (L2OCV) is performed over degrees
+\(\kappa \in \{1,2,3,4\}\). For each \(\kappa\), we repeatedly remove two
+samples, fit least squares on the rest, predict the held‑out points, and
+compute MAE/RMSE. The model with the lowest validation RMSE is selected
+and refit using all samples.
+</p>
+
+<p>
+For the dataset above with pruning budget \(a+t=16/12\),
+L2OCV selects degree \(\kappa=2\), yielding
+</p>
+
+$$
+\text{MAE} = 0.4066, \qquad
+\text{RMSE} = 0.4870.
+$$
+
+<p>
+The final fitted quadratic MAP is:
+</p>
+
+$$
+\hat{\mathcal P}(a,t)
+= 31.68
++ 50.65 a
++ 39.29 t
+- 19.79 a^2
+- 8.34 a t
+- 11.70 t^2.
+$$
+
+<p>
+Unrounded coefficients (in order \(1,a,t,a^2,at,t^2\)) are:
+31.684374, 50.653461, 39.298158,
+−19.795489, −8.338992, −11.704586.
+</p>
+
+<hr>
+
+<h3>Inverse Transformation to Pruning Ratios</h3>
+
+<p>
+Since pruning ratios are defined as
+$$
+\tilde{m}_a = 1-a, \qquad \tilde{m}_g = 1-t,
+$$
+we obtain the equivalent MAP in \((\tilde m_a,\tilde m_g)\):
+</p>
+
+$$
+\mathcal{P}(\tilde m_a,\tilde m_g)
+= 81.79
+- 2.73\,\tilde m_a
+- 7.55\,\tilde m_g
+- 19.79\,\tilde m_a^{2}
+- 8.34\,\tilde m_a\tilde m_g
+- 11.70\,\tilde m_g^{2}.
+$$
+
+<hr>
+
+<h3>Optimal Configuration Under Budget</h3>
+
+<p>
+The pruning budget requires:
+$$
+\tilde m_a + \tilde m_g = \frac{k}{L}.
+$$
+Since each variable lies in the discrete set
+\(\{0,1/L,\dots,1\}\),
+the optimal configuration can be obtained by enumerating all feasible
+pairs and selecting the one with the highest predicted accuracy.
+</p>
+
+<div class="svg-alg">
+  <img src="./algo3.svg" alt="Algorithm 3">
+</div>
+
+<p>
+Equivalently, optimization may be performed in the retained‑ratio space
+\((a,t)\) along
+\(a+t=2-k/L\) and then mapped back via
+\(\tilde m_a^\star=1-a^\star\), \(\tilde m_g^\star=1-t^\star\).
+Both approaches are mathematically identical because the transformation
+is linear.
+</p>
+
+<hr>
+
+
+<!-- ============================================================
+     5. Robustness of MAP
+============================================================ -->
+<h2 id="sec5">5. Robustness of MAP Under Prediction Noise</h2>
+
+<p>
+Because MAP is constructed from fast‑finetuning accuracy measurements,
+it is important to assess whether small prediction errors could influence
+the final pruning‑ratio decision. Since MAP ultimately selects a pruning
+configuration from a <b>finite grid</b> along the constraint
+\(a+t = 2 - k/L\), the choice is expected to be stable as long as noise
+does not significantly change the relative ordering among neighboring
+grid points.
+</p>
+
+<hr>
+
+<h3>Experimental Setup</h3>
+
+<p>
+Using the dataset in Section&nbsp;4 (DeiT‑Base, \(L=12\)), we perform a
+Monte‑Carlo robustness study by injecting controlled noise into all
+measured accuracies. For each accuracy sample \(y_i\), we add zero‑mean
+noise clipped to ±0.5%:
+$$
+y_i^{(\text{noisy})} = y_i + \varepsilon_i,\qquad
+\varepsilon_i \sim \mathrm{clip}(\mathcal{N}(0,0.1), -0.5, 0.5).
+$$
+For each noisy dataset (500 trials):
+</p>
+
+<ol>
+  <li>Leave‑2‑Out cross‑validation is performed over polynomial degrees \(1\!-\!4\).</li>
+  <li>The degree with the lowest validation RMSE is selected.</li>
+  <li>The polynomial is refitted on all noisy data.</li>
+  <li>The optimal pruning ratios are computed along the discrete constraint line \(a+t=16/12\).</li>
+</ol>
+
+<p>
+The baseline (noise‑free) MAP selects:
+$$
+(a^\star,t^\star) = (0.667,\;0.667).
+$$
+</p>
+
+<hr>
+
+<h3>Results</h3>
+
+<p>
+Across 500 perturbed datasets, the MAP‑predicted optimal pruning ratios
+show the following distribution:
+</p>
+
+<ul>
+  <li><b>75.0%</b> of predictions match the baseline exactly.</li>
+  <li><b>5.2%</b> deviate by only <b>one layer</b>
+      (a shift of ±1/12 in either \(a\) or \(t\)).</li>
+  <li><b>19.8%</b> differ by more than one layer.</li>
+</ul>
+
+<p>
+The mean and standard deviation of predicted optima are:
+</p>
+
+$$
+\mathbb{E}[a,t] = (0.622,\;0.712),\qquad
+\mathrm{Std}[a,t] = (0.103,\;0.103).
+$$
+
+<p>
+Given the grid resolution (1/12 ≈ 0.083), this indicates that the
+optimal point remains tightly concentrated around the baseline solution.
+Over 80% of all noisy trials stay within 1‑layer deviation, confirming
+that MAP’s pruning‑ratio decision is quantitatively stable under
+realistic noise levels.
+</p>
+
+<hr>
+
+<h3>Interpretation</h3>
+
+<p>
+The robustness arises from three factors:
+</p>
+
+<ul>
+  <li>The pruning search space is discrete, so small prediction errors do not easily reorder neighboring candidates.</li>
+  <li>The polynomial model produces a smooth accuracy surface, preventing abrupt changes in the optimum.</li>
+  <li>Leave‑2‑Out CV automatically avoids overfitting to noisy samples and stabilizes degree selection.</li>
+</ul>
+
+<p>
+Overall, MAP provides <b>stable pruning‑ratio recommendations</b> even when
+trained on noisy fast‑finetuning measurements, demonstrating that the
+approach is reliable in realistic, noise‑affected settings.
+</p>
+
+<hr>
+
+
+<!-- ============================================================
+     6. Runtime
+============================================================ -->
+<h2 id="sec6">6. Runtime Overhead</h2>
+
+<p>
+All computation is performed on a single Ascend 910B2 NPU.  
+The overall cost is dominated by lightweight data collection, while MAP regression and pruning‑ratio optimization incur negligible overhead.
+</p>
+
+<h3>Time Consumption</h3>
+<ul>
+  <li><b>Lightweight data collection:</b><br>
+      A 100k‑image subset of ImageNet (approximately 1/12 of the full dataset) is used.  
+      The fast‑finetuning speed is 2 minutes per epoch on a single 910B2 NPU.  
+      MAP requires <b>368 epochs</b> of such fast finetuning, resulting in  
+      <b>368 × 2 min ≈ 12.2 hours</b>.
+  </li>
+
+  <li><b>MAP regression and degree selection:</b><br>
+      Polynomial fitting and L2O‑CV require <b>less than 1 minute</b>,  
+      which is negligible relative to data collection.
+  </li>
+
+  <li><b>Redundant‑layer identification:</b><br>
+      After determining the optimal pruning ratios through MAP, the pruned model is trained for <b>60 epochs</b>,  
+      taking approximately <b>2 hours</b>.
+  </li>
+
+  <li><b>Total runtime:</b> ~<b>14 hours</b>.</li>
+</ul>
+
+<h3>Memory Usage</h3>
+<ul>
+  <li>Peak memory consumption is approximately <b>60 GB</b> on a single Ascend 910B2 NPU.</li>
+</ul>
+
+</body>
+</html>

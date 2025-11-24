@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mathematical Formulation & Well-Posedness</title>
+
+<!-- MathJax Configuration -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\\[','\\]']],
+    processEscapes: true,
+    tags: 'ams', // Enable equation numbering
+    macros: {
+      vM: "\\mathbf{M}",
+      vX: "\\mathbf{X}",
+      vW: "\\mathbf{W}",
+      vY: "\\mathbf{Y}",
+      mathcal: ["{\\cal #1}", 1],
+      // Define other macros if necessary
+    }
+  },
+  options: {
+    renderActions: {
+      addMenu: []
+    }
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    :root {
+        --primary-color: #000000;
+        --accent-color: #2c3e50;
+        --blue-highlight: #0056b3; /* Matching the \textcolor{blue} */
+        --bg-color: #ffffff;
+        --font-serif: "Times New Roman", Times, serif;
+        --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-serif);
+        background-color: var(--bg-color);
+        color: var(--primary-color);
+        line-height: 1.6;
+        font-size: 18px;
+        max-width: 850px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: justify;
+    }
+
+    h2 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--blue-highlight);
+        margin-top: 2.5em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    h2:first-of-type {
+        margin-top: 0;
+    }
+
+    p {
+        margin-bottom: 1.2em;
+    }
+
+    /* Environment Styles */
+    .environment {
+        margin-bottom: 1.5em;
+    }
+
+    .lemma, .theorem {
+        font-style: italic;
+    }
+
+    .lemma-header, .theorem-header {
+        font-weight: bold;
+        font-style: normal;
+        font-family: var(--font-sans);
+    }
+
+    .proof {
+        margin-top: -0.5em;
+        margin-bottom: 2em;
+    }
+
+    .proof-header {
+        font-style: italic;
+        font-weight: bold;
+    }
+
+    .qed {
+        float: right;
+        font-style: normal;
+        font-size: 0.8em;
+        color: #555;
+    }
+
+    /* Equation spacing */
+    .MathJax_Display {
+        margin: 1.5em 0 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        body {
+            padding: 20px;
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= SECTION: PRELIMINARIES ================= -->
+
+<h2>Preliminaries</h2>
+
+<p>
+    Assume a ViT $\mathcal{F}$ has $L$ Transformer blocks. The $l$-th transformer block $f_l$ typically integrates: 
+    1) two linear layers, i.e., $\mathcal{L}_{l,1}$ and $\mathcal{L}_{l,2}$, 
+    2) an attention layer $\mathcal{A}_l$, 
+    3) a GELU activation function layer $\mathcal{G}_l$. 
+    For simplicity, we omit auxiliary components such as residual connections and layer normalization. Thus,
+</p>
+
+$$
+\begin{equation}
+    f_{l}(\cdot ):=\mathcal{L}_{l,2}\circ \mathcal{G}_l \circ \mathcal{L} _{l,1}\circ \mathcal{A}_l \circ f_{l-1}(\cdot ),
+    \label{eq:vit_block}
+\end{equation}
+$$
+
+<p>
+    where $\circ$ denotes the function composition operation. We aim to reduce computational overhead through joint pruning of attention layers and redundant GELU activation function layers. That is,
+</p>
+
+$$
+\begin{equation} \label{main_problem}
+    \begin{aligned}
+        &f^{\hat{m}}_l(\cdot ):= \mathcal{L} _{l,2} \circ h\left( \mathcal{G}_l \right) \circ \mathcal{L} _{l,1} \circ h\left( \mathcal{A} _l \right) \circ f_{l-1}^{\hat{m}} (\cdot ),
+        \\
+        &h\left( \mathcal{G}_l \right) = \hat{m}_{l}^{g} \circ \mathcal{G}_l + \left( 1-\hat{m}_{l}^{g} \right) \circ I,
+        \\
+        &h\left( \mathcal{A} _l \right) = \hat{m}_{l}^{a} \circ \mathcal{A} _l + \left( 1-\hat{m}_{l}^{a} \right) \circ I,
+        \\
+        &\hat{m}_l^{a}, \hat{m}_l^{g} \in \{0,1\},
+        \\
+        &\vM := \left( \{\hat{m}_l^a\}_{l=1}^{L}, \{\hat{m}_l^g\}_{l=1}^{L} \right).
+    \end{aligned}
+\end{equation}
+$$
+
+<p>
+    Notably, $\hat{m}_l^{g}$ and $\hat{m}_l^{a}$ are the binary masks. A mask's value of 1 preserves the corresponding layer, while 0 prunes it. $I$ denotes the identity mapping, i.e., a direct skip connection when the layer is pruned. $\vM$ is the set of all the binary masks. A ViT with such masks is referred to as $\mathcal{F}^{\hat{m}}$. Thus, the joint pruning problem is formulated as:
+</p>
+
+$$
+\begin{equation}
+    \begin{aligned}
+        &
+        \mathop{\mathrm{arg}\min}_{\vW,\vM} \ell \left( \mathcal{F}^{\hat{m}}(\vX, \vW, \vM), \vY \right), 
+         \\
+         & \qquad \mathrm{s.t.} \quad \tilde{m}^a + \tilde{m}^g = k/L,
+         \\
+         &\tilde{m}^a = \frac{1}{L}\sum_{l=1}^L \hat{m}^a_l,\quad \tilde{m}^g= \frac{1}{L}\sum_{l=1}^L \hat{m}^g_l,  
+    \end{aligned}
+\end{equation}
+$$
+
+<p>
+    where $(\vX, \vY)$ are respectively samples and labels of fitting data, and $\vW$ is the weights of $\mathcal{F}^{\hat{m}}$. $\ell(\cdot)$ refers to the loss function to measure data fitting quality, e.g., cross-entropy loss for classification tasks.
+</p>
+
+<p>
+    Thus the admissible ratio set $\mathcal D$ is
+</p>
+
+$$
+\mathcal D=\{0,\tfrac1L,\dots,1\}^2,
+\qquad |\mathcal D|=(L+1)^2.
+$$
+
+<p>
+    For each $(\tilde m^a,\tilde m^g)\in\mathcal D$, the prune–finetune–evaluate pipeline yields a deterministic validation accuracy $\mathcal P$:
+</p>
+
+$$
+\mathcal P:\mathcal D\to [0,1].
+$$
+
+<!-- ================= SECTION: THEOREM 1 ================= -->
+
+<h2>Well-posedness of Pruning–Ratio Optimization (Theorem 1)</h2>
+
+<p>
+    We collect and strengthen the results establishing that an optimal pruning configuration always exists under any pruning budget.
+</p>
+
+<!-- Lemma 1 -->
+<div class="environment lemma">
+    <span class="lemma-header">Lemma 1 (Finite representability).</span>
+    $\mathcal D$ is a finite subset of $[0,1]^2$.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Immediate from the construction $\mathcal D=\{(i/L,j/L):0\le i,j\le L\}$.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- Lemma 2 -->
+<div class="environment lemma">
+    <span class="lemma-header">Lemma 2 (Functional well-definedness).</span>
+    $\mathcal P:\mathcal D\to [0,1]$ is well-defined.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Each point in $\mathcal D$ corresponds to binary masks $\hat m^a,\hat m^g$. The pipeline is deterministic and outputs a single accuracy value.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<p>
+    A pruning budget imposes the constraint $\tilde m^a+\tilde m^g = k/L$, yielding the constrained feasible set $\mathcal D_k$:
+</p>
+
+$$
+\mathcal D_k=\Bigl\{
+(\tilde m^a,\tilde m^g)\in\mathcal D:
+\tilde m^a+\tilde m^g = k/L
+\Bigr\}.
+$$
+
+<!-- Lemma 3 -->
+<div class="environment lemma">
+    <span class="lemma-header">Lemma 3 (Feasible set is finite).</span>
+    $|\mathcal D_k|\le L+1$.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    If $\tilde m^a=i/L$, then the constraint uniquely determines $\tilde m^g=(k-i)/L$. Since $0 \le i \le L$, there are at most $L+1$ feasible pairs.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- Lemma 4 -->
+<div class="environment lemma">
+    <span class="lemma-header">Lemma 4 (Attainment of maximum over a finite domain).</span>
+    If a set $S$ is finite and $f:S\to [0,1]$, then $\max_{x\in S}f(x)$ exists.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    A finite set has finitely many function values, and the maximum of a finite set of real numbers always exists.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- Theorem 1 -->
+<div class="environment theorem">
+    <span class="theorem-header">Theorem 1 (Existence of an optimal pruning configuration).</span>
+    For any pruning budget $k$,
+    $$
+    ((\tilde m^a)^\star,(\tilde m^g)^\star)
+    \in
+    \arg\max_{(\tilde m^a,\tilde m^g)\in\mathcal D_k}
+    \mathcal P(\tilde m^a,\tilde m^g)
+    $$
+    exists.
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    This follows directly by combining Lemmas 3 and 4. Since the domain $\mathcal D_k$ is finite and non-empty (assuming a valid $k$), and $\mathcal P$ is well-defined on this domain, the maximum is attained.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<p>
+    Thus, the pruning–ratio optimization problem is <b>well‑posed</b>.
+</p>
+
+</body>
+</html>

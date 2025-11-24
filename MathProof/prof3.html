@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theorem 3 — Consistency of MAP</title>
+
+<!-- MathJax Configuration -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['[',']']],
+    processEscapes: true,
+    tags: 'ams',
+    macros: {
+      mathcal: ["{\\cal #1}", 1],
+      mathbb: ["{\\bf #1}", 1],
+      underset: ["\\mathop{#2}\\limits_{#1}", 2],
+      underbrace: ["\\mathop{\\vtop{\\ialign{##\\crcr $\\hfil\\displaystyle{#1}\\hfil$\\crcr\\noalign{\\kern3pt\\nointerlineskip}\\upbracefill\\crcr\\noalign{\\kern3pt}}}}\\limits_{#2}", 2]
+    }
+  },
+  options: {
+    renderActions: {
+      addMenu: []
+    }
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+    :root {
+        --primary-color: #000000;
+        --header-color: #0056b3; /* Matching \textcolor{blue} */
+        --bg-color: #ffffff;
+        --font-serif: "Times New Roman", Times, serif;
+        --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-serif);
+        background-color: var(--bg-color);
+        color: var(--primary-color);
+        line-height: 1.6;
+        font-size: 18px;
+        max-width: 850px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: justify;
+    }
+
+    h2 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        margin-top: 2.5em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    h3 {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--header-color);
+        font-size: 1.1em;
+        margin-top: 2em;
+        margin-bottom: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    h2:first-of-type {
+        margin-top: 0;
+    }
+
+    p {
+        margin-bottom: 1.2em;
+    }
+
+    ul, ol {
+        margin-bottom: 1.2em;
+        padding-left: 1.5em;
+    }
+
+    li {
+        margin-bottom: 0.5em;
+    }
+
+    /* Environment Styles (Theorem, Lemma, Assumption) */
+    .environment {
+        margin-bottom: 1.5em;
+        display: block;
+        font-style: italic;
+    }
+
+    .env-header {
+        font-weight: bold;
+        font-style: normal;
+        font-family: var(--font-sans);
+        display: inline;
+    }
+
+    /* Proof Styles */
+    .proof {
+        margin-top: -0.5em;
+        margin-bottom: 2em;
+        display: block;
+    }
+
+    .proof-header {
+        font-style: italic;
+        font-weight: bold;
+        display: inline;
+    }
+
+    .proof-step {
+        font-weight: bold;
+        font-style: normal;
+        margin-top: 1em;
+        display: block;
+    }
+
+    .qed {
+        float: right;
+        font-style: normal;
+        font-size: 0.8em;
+        color: #555;
+        margin-left: 10px;
+    }
+
+    /* Equation spacing */
+    .MathJax_Display {
+        margin: 1.5em 0 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        body {
+            padding: 20px;
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= SECTION TITLE ================= -->
+
+<h2>Consistency of MAP Under Noisy Fast Finetuning (Theorem 3)</h2>
+
+<p>
+    We now present a full statistical justification for the Meta Accuracy Predictor (MAP) when the observed accuracies are obtained via subset-based fast finetuning.
+    Crucially, since MAP is approximated using the <b>least squares method</b> (regression), we show that the noise introduced by fast finetuning becomes an irreducible constant in the loss function and does not affect the optimization of the predictor.
+</p>
+
+<!-- ================= SUBSECTION: OBSERVATION MODEL ================= -->
+
+<h3>Observation Model</h3>
+
+<p>
+    For any pruning ratio pair $x = (\tilde m^a,\tilde m^g)$, let $\mathcal P(x)$ denote the ground-truth validation accuracy under full finetuning.
+    Subset-based fast finetuning produces noisy observations $y$:
+</p>
+
+$$
+y = \mathcal P(x) + b + \varepsilon,
+$$
+
+<p>where:</p>
+<ul>
+    <li>$b$ is a constant bias (systematic error) caused by the limited number of finetuning steps.</li>
+    <li>$\varepsilon$ is a zero-mean random noise variable with finite variance $\text{Var}(\varepsilon) = \sigma^2$, assumed to be independent of $x$.</li>
+</ul>
+
+<!-- ================= SUBSECTION: INVARIANCE ================= -->
+
+<h3>Invariance of Maximizer Under Constant Bias</h3>
+
+<div class="environment lemma">
+    <span class="env-header">Lemma 1 (Bias preserves the maximizer).</span>
+    For any objective function $\mathcal P(x)$ and a constant $b$, the set of maximizers remains unchanged:
+    $$
+    \underset{x}{\arg\max} \, \mathcal P(x) = \underset{x}{\arg\max} \, (\mathcal P(x) + b).
+    $$
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    Adding a constant $b$ to the objective function shifts the value of the function uniformly for all $x$ but does not alter the relative ordering. Thus, if $x^*$ maximizes $\mathcal P$, it also maximizes $\mathcal P + b$.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<!-- ================= SUBSECTION: LEAST SQUARES ================= -->
+
+<h3>Least Squares Decomposition</h3>
+
+<p>
+    MAP is trained to approximate the observed accuracy $y$ by minimizing the <b>Least Squares (Mean Squared Error)</b> objective. Let $f(x; \theta)$ denote the MAP predictor parameterized by $\theta$. The population risk (loss function) is:
+</p>
+
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{x, \varepsilon} \left[ \left( y - f(x; \theta) \right)^2 \right].
+$$
+
+<p>Substituting the observation model $y = \mathcal P(x) + b + \varepsilon$:</p>
+
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{x, \varepsilon} \left[ \left( (\mathcal P(x) + b - f(x; \theta)) + \varepsilon \right)^2 \right].
+$$
+
+<p>Expanding the square term $(A + \varepsilon)^2 = A^2 + 2A\varepsilon + \varepsilon^2$, where $A = \mathcal P(x) + b - f(x; \theta)$:</p>
+
+$$
+\mathcal{L}(\theta) = \underbrace{\mathbb{E}_x \left[ (\mathcal P(x) + b - f(x; \theta))^2 \right]}_{\mathcal{L}_{\text{clean}}(\theta)}
++ \underbrace{2 \mathbb{E}_{x, \varepsilon} \left[ (\dots) \cdot \varepsilon \right]}_{\text{Cross-term}}
++ \underbrace{\mathbb{E}_\varepsilon [\varepsilon^2]}_{\text{Variance}}.
+$$
+
+<p>
+    Since $\varepsilon$ is zero-mean ($\mathbb{E}[\varepsilon]=0$) and independent of $x$, the cross-term vanishes. The term $\mathbb{E}[\varepsilon^2]$ is simply the noise variance $\sigma^2$. Thus, the loss decomposes into:
+</p>
+
+$$
+\mathcal{L}(\theta) = \mathbb{E}_x \left[ \left( \mathcal P(x) + b - f(x; \theta) \right)^2 \right] + \sigma^2.
+$$
+
+<!-- ================= SUBSECTION: MAIN THEOREM ================= -->
+
+<h3>Main Theorem</h3>
+
+<div class="environment theorem">
+    <span class="env-header">Theorem 3 (MAP Consistency via Least Squares).</span>
+    Let the observed accuracy be $y = \mathcal P(x) + b + \varepsilon$. If the MAP predictor $f(x; \theta)$ is trained by minimizing the least squares loss, then:
+    <ol>
+        <li>The optimization gradient is unaffected by the noise variance $\sigma^2$.</li>
+        <li>The predictor converges to the biased truth $\mathcal P(x) + b$.</li>
+        <li>The predictor recovers the optimal pruning ratios of the ground truth $\mathcal P(x)$.</li>
+    </ol>
+</div>
+
+<div class="proof">
+    <span class="proof-header">Proof.</span>
+    
+    <span class="proof-step">1. Gradient Invariance:</span>
+    From the decomposition above, the loss function is $\mathcal{L}(\theta) = \mathcal{L}_{\text{clean}}(\theta) + \sigma^2$.
+    When computing the gradient with respect to parameters $\theta$:
+    $$
+    \nabla_\theta \mathcal{L}(\theta) = \nabla_\theta \mathcal{L}_{\text{clean}}(\theta) + \nabla_\theta (\sigma^2) = \nabla_\theta \mathcal{L}_{\text{clean}}(\theta).
+    $$
+    Since $\sigma^2$ is an irreducible constant, the gradient direction is identical to the gradient obtained if we were training on the noiseless (but biased) target $\mathcal P(x) + b$.
+
+    <span class="proof-step">2. Convergence:</span>
+    Minimizing the least squares objective is equivalent to estimating the conditional expectation of the target. Assuming sufficient model capacity and training samples ($N \to \infty$):
+    $$
+    f^*(x) = \mathbb{E}[y | x] = \mathbb{E}[\mathcal P(x) + b + \varepsilon | x] = \mathcal P(x) + b.
+    $$
+
+    <span class="proof-step">3. Maximizer Recovery:</span>
+    Since $f^*(x) \approx \mathcal P(x) + b$, by Lemma 1, maximizing $f^*(x)$ is equivalent to maximizing $\mathcal P(x)$. Thus, MAP successfully identifies the optimal pruning configuration despite the noise and bias.
+    <span class="qed">$\blacksquare$</span>
+</div>
+
+<h3>Remark</h3>
+<p>
+    Although fast finetuning introduces a constant bias and random noise, our derivation shows that the <b>least squares objective</b> naturally handles these perturbations. The bias is rank-preserving, and the noise variance $\sigma^2$ becomes an additive constant in the loss function. Consequently, the noise does not alter the optimization landscape (gradients), ensuring that MAP remains a statistically consistent approximation for identifying the optimal pruning ratios.
+</p>
+
+</body>
+</html>
